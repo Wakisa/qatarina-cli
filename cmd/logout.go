@@ -2,7 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"qatarina-cli/internal/auth"
+
+	"github.com/wakisa/qatarina-cli/internal/auth"
 
 	"github.com/spf13/cobra"
 )

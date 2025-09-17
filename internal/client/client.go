@@ -3,7 +3,8 @@ package client
 import (
 	"bytes"
 	"net/http"
-	"qatarina-cli/internal/auth"
+
+	"github.com/wakisa/qatarina-cli/internal/auth"
 )
 
 type Client struct {

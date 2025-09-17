@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"qatarina-cli/internal/client"
-	"qatarina-cli/internal/schema"
+
+	"github.com/wakisa/qatarina-cli/internal/client"
+	"github.com/wakisa/qatarina-cli/internal/schema"
 
 	"github.com/spf13/cobra"
 )
