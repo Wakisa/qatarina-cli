@@ -51,9 +51,12 @@ var createTestCaseCmd = &cobra.Command{
 		}
 		defer resp.Body.Close()
 
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
 
-		if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		if resp.StatusCode != 200 {
 			return fmt.Errorf("API error: %s", string(bodyBytes))
 		}
 		var messageResponse schema.MessageResponse
