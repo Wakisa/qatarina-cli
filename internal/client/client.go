@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 
 	"github.com/wakisa/qatarina-cli/internal/auth"
@@ -12,12 +13,20 @@ type Client struct {
 	Token   string
 }
 
-func Default() *Client {
-	token, _ := auth.LoadToken()
+func NewClient(url string) *Client {
+	token, err := auth.LoadToken()
+	if err != nil {
+		fmt.Println(err)
+	}
 	return &Client{
-		BaseURL: "http://localhost:4597/", // make this configurable later
+		BaseURL: url,
 		Token:   token,
 	}
+
+}
+
+func Default() *Client {
+	return NewClient("http://localhost:4597/")
 }
 
 func (c *Client) Post(path string, body []byte) (*http.Response, error) {
