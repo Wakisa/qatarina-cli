@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-
+	"os"
 	"github.com/wakisa/qatarina-cli/internal/auth"
 )
 
@@ -25,8 +25,14 @@ func NewClient(url string) *Client {
 
 }
 
+// Default creates a new client that connects to default URL 
+// or host specified in the environment variable `QATARINA_HOST`
 func Default() *Client {
-	return NewClient("http://localhost:4597/")
+	url := os.Getenv("QATARINA_HOST")
+	if url == "" {
+		url = "http://localhost:4597"
+	}
+	return NewClient(url)
 }
 
 func (c *Client) Post(path string, body []byte) (*http.Response, error) {
