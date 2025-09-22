@@ -1,0 +1,18 @@
+version: 3
+tasks:  
+  build:
+    # lint the go code first
+    - golangci-lint
+    - go build -o build/qatarina-cli
+
+  build-pr:
+    - gh pr checkout {{.CLI_ARGS}}
+    - go vet 
+    - task build
+  
+  install-local:
+    deps: [ build ]
+    cmds:
+      - cp ./build/qatarina-cli $HOME/bin/
+
+    
