@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/wakisa/qatarina-cli/internal/auth"
 )
@@ -37,7 +38,7 @@ func Default() *Client {
 }
 
 func (c *Client) Post(path string, body []byte) (*http.Response, error) {
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/%s", c.BaseURL, path), bytes.NewBuffer(body))
+	req, err := http.NewRequest("POST", joinURL(c.BaseURL, path), bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
@@ -47,4 +48,10 @@ func (c *Client) Post(path string, body []byte) (*http.Response, error) {
 	}
 
 	return http.DefaultClient.Do(req)
+}
+
+func joinURL(base, path string) string {
+	base = strings.TrimRight(base, "/")
+	path = strings.TrimLeft(path, "/")
+	return fmt.Sprintf("%s/%s", base, path)
 }
