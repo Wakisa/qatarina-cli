@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+
 	"github.com/wakisa/qatarina-cli/internal/auth"
 )
 
@@ -25,7 +26,7 @@ func NewClient(url string) *Client {
 
 }
 
-// Default creates a new client that connects to default URL 
+// Default creates a new client that connects to default URL
 // or host specified in the environment variable `QATARINA_HOST`
 func Default() *Client {
 	url := os.Getenv("QATARINA_HOST")
@@ -36,7 +37,7 @@ func Default() *Client {
 }
 
 func (c *Client) Post(path string, body []byte) (*http.Response, error) {
-	req, err := http.NewRequest("POST", c.BaseURL+path, bytes.NewBuffer(body))
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/%s", c.BaseURL, path), bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}

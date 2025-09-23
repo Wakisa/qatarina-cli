@@ -22,7 +22,7 @@ var loginCmd = &cobra.Command{
 			return fmt.Errorf("email and password are required")
 		}
 
-		payload := schema.LoginResquest{
+		payload := schema.LoginRequest{
 			Email:    email,
 			Password: password,
 		}
