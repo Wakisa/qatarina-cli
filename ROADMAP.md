@@ -29,6 +29,7 @@ This roadmap outlines features to expand the CLI tool to support the main Qatari
 
 ## Test Plan Management
 - [ ] Create a test plan
+- [x] Assign a testcase to testplan (linking test case to test plan)
 - [ ] View all test plans
 - [ ] Get one test plan
 - [ ] Update a test plan
