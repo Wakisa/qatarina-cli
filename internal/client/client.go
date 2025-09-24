@@ -55,3 +55,16 @@ func joinURL(base, path string) string {
 	path = strings.TrimLeft(path, "/")
 	return fmt.Sprintf("%s/%s", base, path)
 }
+
+func (c *Client) Get(path string) (*http.Response, error) {
+	req, err := http.NewRequest("GET", joinURL(c.BaseURL, path), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	return http.DefaultClient.Do(req)
+}

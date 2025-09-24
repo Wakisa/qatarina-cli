@@ -24,3 +24,15 @@ type LoginResponse struct {
 	Token     string `json:"token"`
 	ExpiresIn int64  `json:"expires_in"`
 }
+
+type TestCaseResponse struct {
+	ID              string   `json:"id"`
+	Title           string   `json:"title"`
+	Code            string   `json:"code"`
+	Kind            string   `json:"kind"`
+	FeatureOrModule string   `json:"feature_or_module"`
+	Tags            []string `json:"tags"`
+	IsDraft         bool     `json:"is_draft"`
+	CreatedByID     int64    `json:"created_by_id"`
+	ProjectID       int64    `json:"project_id"`
+}
