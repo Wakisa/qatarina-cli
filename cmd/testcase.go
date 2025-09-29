@@ -15,6 +15,20 @@ import (
 var testCaseCmd = &cobra.Command{
 	Use:   "test-case",
 	Short: "Test Case commands",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		viewID, _ := cmd.Flags().GetString("view")
+		deleteID, _ := cmd.Flags().GetString("delete")
+
+		switch {
+		case viewID != "":
+			return runViewTestCasesByID(viewID)
+		case deleteID != "":
+			return runDeleteTestCase(deleteID)
+		default:
+			return cmd.Help()
+
+		}
+	},
 }
 
 var createTestCaseCmd = &cobra.Command{
@@ -99,19 +113,6 @@ func runViewTestCases(projectID int64) error {
 	return nil
 }
 
-var viewTestCaseCmd = &cobra.Command{
-	Use:     "view",
-	Short:   "View a single test case by ID",
-	Example: `qatarina-cli test-case view --id 0198368b-645c-7147-b821-493e67f2d20d`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		id, _ := cmd.Flags().GetString("id")
-		if id == "" {
-			return fmt.Errorf("test case ID is required")
-		}
-		return runViewTestCasesByID(id)
-	},
-}
-
 func runViewTestCasesByID(id string) error {
 	path := fmt.Sprintf("v1/test-cases/%s", id)
 	resp, err := client.Default().Get(path)
@@ -154,6 +155,32 @@ func runViewTestCasesByID(id string) error {
 	return nil
 }
 
+func runDeleteTestCase(id string) error {
+	path := fmt.Sprintf("v1/test-cases/%s", id)
+	resp, err := client.Default().Delete(path)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("API error: %s", string(bodyBytes))
+	}
+
+	var message schema.MessageResponse
+	if err := json.Unmarshal(bodyBytes, &message); err != nil {
+		return fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	fmt.Println(message.Message)
+	return nil
+}
+
 func init() {
 	createTestCaseCmd.Flags().String("title", "", "Title of the test case")
 	createTestCaseCmd.Flags().String("kind", "", "Kind of the test case")
@@ -164,13 +191,13 @@ func init() {
 	createTestCaseCmd.Flags().Bool("draft", false, "Is this a draft")
 	createTestCaseCmd.Flags().StringSlice("tags", []string{}, "Comma-separated tags")
 
-	listTestCasesCmd.Flags().Int64("project", 0, "Project ID")
+	testCaseCmd.Flags().String("view", "", "View test case by ID")
+	testCaseCmd.Flags().String("delete", "", "Delete test case by ID")
 
-	viewTestCaseCmd.Flags().String("id", "", "Test case ID")
+	listTestCasesCmd.Flags().Int64("project", 0, "Project ID")
 
 	testCaseCmd.AddCommand(createTestCaseCmd)
 	testCaseCmd.AddCommand(listTestCasesCmd)
-	testCaseCmd.AddCommand(viewTestCaseCmd)
 
 	rootCmd.AddCommand(testCaseCmd)
 
