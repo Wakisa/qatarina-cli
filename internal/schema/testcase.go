@@ -27,12 +27,15 @@ type LoginResponse struct {
 
 type TestCaseResponse struct {
 	ID              string   `json:"id"`
-	Title           string   `json:"title"`
-	Code            string   `json:"code"`
-	Kind            string   `json:"kind"`
-	FeatureOrModule string   `json:"feature_or_module"`
-	Tags            []string `json:"tags"`
-	IsDraft         bool     `json:"is_draft"`
-	CreatedByID     int64    `json:"created_by_id"`
 	ProjectID       int64    `json:"project_id"`
+	CreatedByID     int64    `json:"created_by"`
+	Kind            string   `json:"kind"`
+	Code            string   `json:"code"`
+	FeatureOrModule string   `json:"feature_or_module"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description"`
+	IsDraft         bool     `json:"is_draft"`
+	Tags            []string `json:"tags"`
+	CreatedAt       string   `json:"created_at"`
+	UpdatedAt       string   `json:"updated_at"`
 }

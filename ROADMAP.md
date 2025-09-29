@@ -8,8 +8,8 @@ This roadmap outlines features to expand the CLI tool to support the main Qatari
 
 ## Test Case Management
 - [x] Create a test case
-- [ ] List all test cases for a project
-- [ ] View details of one test case
+- [x] List all test cases for a project
+- [x] View details of one test case
 - [ ] Modify(Update) an existing test case
 - [ ] Delete a test case
 

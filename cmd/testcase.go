@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/wakisa/qatarina-cli/common"
 	"github.com/wakisa/qatarina-cli/internal/client"
 	"github.com/wakisa/qatarina-cli/internal/schema"
 
@@ -17,8 +18,9 @@ var testCaseCmd = &cobra.Command{
 }
 
 var createTestCaseCmd = &cobra.Command{
-	Use:   "create",
-	Short: "Create a new test case manually",
+	Use:     "create",
+	Short:   "Create a new test case manually",
+	Example: `qatarina-cli test-case create --title "Login flow" --kind "functional" --project 2 --code "TC-001"`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		title, _ := cmd.Flags().GetString("title")
 		description, _ := cmd.Flags().GetString("description")
@@ -68,6 +70,90 @@ var createTestCaseCmd = &cobra.Command{
 	},
 }
 
+var listTestCasesCmd = &cobra.Command{
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Example: "qatarina-cli testcase list --project 2",
+	Short:   "list all test cases for a project",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		projectID, _ := cmd.Flags().GetInt64("project")
+		return runViewTestCases(projectID)
+	},
+}
+
+func runViewTestCases(projectID int64) error {
+	testCases, err := fetchTestCases(projectID)
+	if err != nil {
+		return err
+	}
+
+	if len(testCases) == 0 {
+		fmt.Println("No test cases found.")
+		return nil
+	}
+
+	fmt.Printf("Test Cases for Project %d:\n", projectID)
+	for _, tc := range testCases {
+		fmt.Printf("• %s\n Code: %s\n Kind: %s\n ID: %s\n\n", tc.Title, tc.Code, tc.Kind, tc.ID)
+	}
+	return nil
+}
+
+var viewTestCaseCmd = &cobra.Command{
+	Use:     "view",
+	Short:   "View a single test case by ID",
+	Example: `qatarina-cli test-case view --id 0198368b-645c-7147-b821-493e67f2d20d`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id, _ := cmd.Flags().GetString("id")
+		if id == "" {
+			return fmt.Errorf("test case ID is required")
+		}
+		return runViewTestCasesByID(id)
+	},
+}
+
+func runViewTestCasesByID(id string) error {
+	path := fmt.Sprintf("v1/test-cases/%s", id)
+	resp, err := client.Default().Get(path)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("API error: %s", string(bodyBytes))
+	}
+
+	var wrapper struct {
+		TestCase schema.TestCaseResponse `json:"test_case"`
+	}
+	if err := json.Unmarshal(bodyBytes, &wrapper); err != nil {
+		return fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	tc := wrapper.TestCase
+
+	fmt.Printf("Test Case Details:\n")
+	fmt.Printf("• ID: %s\n", tc.ID)
+	fmt.Printf("• Project ID: %d\n", tc.ProjectID)
+	fmt.Printf("• Title: %s\n", tc.Title)
+	fmt.Printf("• Code: %s\n", tc.Code)
+	fmt.Printf("• Kind: %s\n", tc.Kind)
+	fmt.Printf("• Description: %s\n", tc.Description)
+	fmt.Printf("• Feature/Module: %s\n", tc.FeatureOrModule)
+	fmt.Printf("• Tags: %v\n", tc.Tags)
+	fmt.Printf("• Draft: %v\n", tc.IsDraft)
+	fmt.Printf("• Created By: %d\n", tc.CreatedByID)
+	fmt.Printf("• Created At: %s\n", common.DefaultIfEmpty(tc.CreatedAt))
+	fmt.Printf("• Updated At: %s\n", common.DefaultIfEmpty(tc.UpdatedAt))
+
+	return nil
+}
+
 func init() {
 	createTestCaseCmd.Flags().String("title", "", "Title of the test case")
 	createTestCaseCmd.Flags().String("kind", "", "Kind of the test case")
@@ -78,6 +164,14 @@ func init() {
 	createTestCaseCmd.Flags().Bool("draft", false, "Is this a draft")
 	createTestCaseCmd.Flags().StringSlice("tags", []string{}, "Comma-separated tags")
 
+	listTestCasesCmd.Flags().Int64("project", 0, "Project ID")
+
+	viewTestCaseCmd.Flags().String("id", "", "Test case ID")
+
 	testCaseCmd.AddCommand(createTestCaseCmd)
+	testCaseCmd.AddCommand(listTestCasesCmd)
+	testCaseCmd.AddCommand(viewTestCaseCmd)
+
 	rootCmd.AddCommand(testCaseCmd)
+
 }
