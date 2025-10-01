@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
-	"github.com/wakisa/qatarina-cli/common"
 	"github.com/wakisa/qatarina-cli/internal/client"
 	"github.com/wakisa/qatarina-cli/internal/schema"
 
@@ -16,18 +17,7 @@ var testCaseCmd = &cobra.Command{
 	Use:   "test-case",
 	Short: "Test Case commands",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		viewID, _ := cmd.Flags().GetString("view")
-		deleteID, _ := cmd.Flags().GetString("delete")
-
-		switch {
-		case viewID != "":
-			return runViewTestCasesByID(viewID)
-		case deleteID != "":
-			return runDeleteTestCase(deleteID)
-		default:
-			return cmd.Help()
-
-		}
+		return cmd.Help()
 	},
 }
 
@@ -69,7 +59,7 @@ var createTestCaseCmd = &cobra.Command{
 
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to read response body: %w", err)
 		}
 
 		if resp.StatusCode != 200 {
@@ -87,11 +77,15 @@ var createTestCaseCmd = &cobra.Command{
 var listTestCasesCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
-	Example: "qatarina-cli testcase list --project 2",
 	Short:   "list all test cases for a project",
+	Example: "qatarina-cli test-case list --project 2",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		projectID, _ := cmd.Flags().GetInt64("project")
+		projectID, err := cmd.Flags().GetInt64("project")
+		if err != nil {
+			return fmt.Errorf("project ID is invalid: %w", err)
+		}
 		return runViewTestCases(projectID)
+
 	},
 }
 
@@ -113,6 +107,16 @@ func runViewTestCases(projectID int64) error {
 	return nil
 }
 
+var viewTestCaseCmd = &cobra.Command{
+	Use:     "view [test-case-id]",
+	Aliases: []string{"show", "get"},
+	Short:   "View a test case by ID",
+	Args:    cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runViewTestCasesByID(args[0])
+	},
+}
+
 func runViewTestCasesByID(id string) error {
 	path := fmt.Sprintf("v1/test-cases/%s", id)
 	resp, err := client.Default().Get(path)
@@ -123,8 +127,9 @@ func runViewTestCasesByID(id string) error {
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read response body: %w", err)
 	}
+
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("API error: %s", string(bodyBytes))
 	}
@@ -140,7 +145,7 @@ func runViewTestCasesByID(id string) error {
 
 	fmt.Printf("Test Case Details:\n")
 	fmt.Printf("• ID: %s\n", tc.ID)
-	fmt.Printf("• Project ID: %d\n", tc.ProjectID)
+	fmt.Printf("• Project: %d\n", tc.ProjectID)
 	fmt.Printf("• Title: %s\n", tc.Title)
 	fmt.Printf("• Code: %s\n", tc.Code)
 	fmt.Printf("• Kind: %s\n", tc.Kind)
@@ -149,10 +154,20 @@ func runViewTestCasesByID(id string) error {
 	fmt.Printf("• Tags: %v\n", tc.Tags)
 	fmt.Printf("• Draft: %v\n", tc.IsDraft)
 	fmt.Printf("• Created By: %d\n", tc.CreatedByID)
-	fmt.Printf("• Created At: %s\n", common.DefaultIfEmpty(tc.CreatedAt))
-	fmt.Printf("• Updated At: %s\n", common.DefaultIfEmpty(tc.UpdatedAt))
+	fmt.Printf("• Created At: %s\n", cmp.Or(strings.TrimSpace(tc.CreatedAt), "N/A"))
+	fmt.Printf("• Updated At: %s\n", cmp.Or(strings.TrimSpace(tc.CreatedAt), "N/A"))
 
 	return nil
+}
+
+var deleteTestCaseCmd = &cobra.Command{
+	Use:     "delete [test-case-id]",
+	Aliases: []string{"rm"},
+	Short:   "Delete a test case by ID",
+	Args:    cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runDeleteTestCase(args[0])
+	},
 }
 
 func runDeleteTestCase(id string) error {
@@ -165,7 +180,7 @@ func runDeleteTestCase(id string) error {
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	if resp.StatusCode != 200 {
@@ -191,13 +206,12 @@ func init() {
 	createTestCaseCmd.Flags().Bool("draft", false, "Is this a draft")
 	createTestCaseCmd.Flags().StringSlice("tags", []string{}, "Comma-separated tags")
 
-	testCaseCmd.Flags().String("view", "", "View test case by ID")
-	testCaseCmd.Flags().String("delete", "", "Delete test case by ID")
-
 	listTestCasesCmd.Flags().Int64("project", 0, "Project ID")
 
 	testCaseCmd.AddCommand(createTestCaseCmd)
 	testCaseCmd.AddCommand(listTestCasesCmd)
+	testCaseCmd.AddCommand(viewTestCaseCmd)
+	testCaseCmd.AddCommand(deleteTestCaseCmd)
 
 	rootCmd.AddCommand(testCaseCmd)
 
