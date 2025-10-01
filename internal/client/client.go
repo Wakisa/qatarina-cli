@@ -68,3 +68,16 @@ func (c *Client) Get(path string) (*http.Response, error) {
 
 	return http.DefaultClient.Do(req)
 }
+
+func (c *Client) Delete(path string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodDelete, joinURL(c.BaseURL, path), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	return http.DefaultClient.Do(req)
+}

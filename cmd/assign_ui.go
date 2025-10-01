@@ -21,7 +21,7 @@ func (i testCaseItem) DisplayTitle() string {
 	return i.Title
 }
 
-func (i testCaseItem) Description() string {
+func (i testCaseItem) DescriptionInfo() string {
 	return fmt.Sprintf("Code: %s | Kind: %s", i.Code, i.Kind)
 }
 
