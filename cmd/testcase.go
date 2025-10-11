@@ -28,8 +28,64 @@ var createTestCaseCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new test case interactively",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runCreateTestCase()
+		title, _ := cmd.Flags().GetString("title")
+		kind, _ := cmd.Flags().GetString("kind")
+		projectID, _ := cmd.Flags().GetInt64("project")
+		description, _ := cmd.Flags().GetString("description")
+		code, _ := cmd.Flags().GetString("code")
+		feature, _ := cmd.Flags().GetString("feature-or-module")
+		isDraft, _ := cmd.Flags().GetBool("draft")
+		tags, _ := cmd.Flags().GetStringSlice("tags")
+
+		// Check if required flags are present
+		if title == "" || kind == "" || projectID == 0 || description == "" || code == "" || feature == "" {
+			fmt.Println("Launching interactive wizard...")
+			return runCreateTestCase()
+		}
+
+		// Submit directly via flags
+		payload := schema.CreateTestCaseRequest{
+			Title:           title,
+			Kind:            kind,
+			ProjectID:       projectID,
+			Description:     description,
+			Code:            code,
+			FeatureOrModule: feature,
+			IsDraft:         isDraft,
+			Tags:            tags,
+		}
+		return submitTestCase(payload)
+
 	},
+}
+
+func submitTestCase(payload schema.CreateTestCaseRequest) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	resp, err := client.Default().Post("v1/test-cases", body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("API error: %s", string(bodyBytes))
+	}
+
+	var msg schema.MessageResponse
+	if err := json.Unmarshal(bodyBytes, &msg); err != nil {
+		return fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	fmt.Println(msg.Message)
+	return nil
 }
 
 func runCreateTestCase() error {
@@ -87,33 +143,9 @@ func runCreateTestCase() error {
 		IsDraft:         isDraft,
 		Tags:            tags,
 	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal payload: %w", err)
-	}
 
-	// Submit to API
-	resp, err := client.Default().Post("v1/test-cases", body)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+	return submitTestCase(payload)
 
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response: %w", err)
-	}
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("API error: %s", string(bodyBytes))
-	}
-
-	var msg schema.MessageResponse
-	if err := json.Unmarshal(bodyBytes, &msg); err != nil {
-		return fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	fmt.Println(msg.Message)
-	return nil
 }
 
 var listTestCasesCmd = &cobra.Command{
@@ -239,6 +271,15 @@ func runDeleteTestCase(id string) error {
 }
 
 func init() {
+
+	createTestCaseCmd.Flags().String("title", "", "Title of the test case")
+	createTestCaseCmd.Flags().String("kind", "", "Kind of the test case")
+	createTestCaseCmd.Flags().Int64("project", 0, "Project ID")
+	createTestCaseCmd.Flags().String("description", "", "Description of the test case")
+	createTestCaseCmd.Flags().String("code", "", "Code identifier")
+	createTestCaseCmd.Flags().String("feature-or-module", "", "Feature or module name")
+	createTestCaseCmd.Flags().Bool("draft", false, "Is this a draft")
+	createTestCaseCmd.Flags().StringSlice("tags", []string{}, "Comma-separated tags")
 
 	listTestCasesCmd.Flags().Int64("project", 0, "Project ID")
 
