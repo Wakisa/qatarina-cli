@@ -22,22 +22,50 @@ var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new user via wizard",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runCreateUser()
+		return runCreateUser(cmd)
 	},
 }
 
-func runCreateUser() error {
-	m := tui.NewUserCreateModel()
-	prog := tea.NewProgram(m)
-	final, err := prog.Run()
+func getFlag(cmd *cobra.Command, name string) string {
+	val, err := cmd.Flags().GetString(name)
 	if err != nil {
-		return err
+		return ""
 	}
-	um, ok := final.(*tui.UserCreateModel)
-	if !ok {
-		return fmt.Errorf("unexpected model type: %T", final)
+	return val
+}
+
+func runCreateUser(cmd *cobra.Command) error {
+	a := map[string]string{
+		"FirstName":   getFlag(cmd, "first-name"),
+		"LastName":    getFlag(cmd, "last-name"),
+		"DisplayName": getFlag(cmd, "display-name"),
+		"Email":       getFlag(cmd, "email"),
+		"Password":    getFlag(cmd, "password"),
 	}
-	a := um.Answers()
+
+	// If all required flags are present, skip wizard
+	allFlagsPresent := true
+	for _, key := range []string{"FirstName", "LastName", "DisplayName", "Email", "Password"} {
+		if strings.TrimSpace(a[key]) == "" {
+			allFlagsPresent = false
+			break
+		}
+	}
+
+	if !allFlagsPresent {
+		// Launch wizard
+		m := tui.NewUserCreateModel()
+		prog := tea.NewProgram(m)
+		final, err := prog.Run()
+		if err != nil {
+			return err
+		}
+		um, ok := final.(*tui.UserCreateModel)
+		if !ok {
+			return fmt.Errorf("unexpected model type: %T", final)
+		}
+		a = um.Answers()
+	}
 
 	required := []string{"FirstName", "LastName", "DisplayName", "Email", "Password"}
 	for _, key := range required {
@@ -191,6 +219,12 @@ var deleteCmd = &cobra.Command{
 }
 
 func init() {
+	createCmd.Flags().String("first-name", "", "First name")
+	createCmd.Flags().String("last-name", "", "Last name")
+	createCmd.Flags().String("display-name", "", "Display name")
+	createCmd.Flags().String("email", "", "Email address")
+	createCmd.Flags().String("password", "", "Password")
+	createCmd.Flags().String("org", "", "Organization ID (optional)")
 	userCmd.AddCommand(createCmd)
 	userCmd.AddCommand(listCmd)
 	userCmd.AddCommand(viewCmd)
