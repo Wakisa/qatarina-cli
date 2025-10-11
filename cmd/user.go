@@ -107,9 +107,9 @@ var listCmd = &cobra.Command{
 	},
 }
 
-var getCmd = &cobra.Command{
-	Use:   "get [userID]",
-	Short: "Get user by ID",
+var viewCmd = &cobra.Command{
+	Use:   "view [userID]",
+	Short: "View user by ID",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		id := args[0]
@@ -120,15 +120,51 @@ var getCmd = &cobra.Command{
 		}
 		defer resp.Body.Close()
 
-		var user map[string]interface{}
-		decoder := json.NewDecoder(resp.Body)
-		if err := decoder.Decode(&user); err != nil {
-			fmt.Println("Failed to parse response:", err)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println("Failed to read response:", err)
 			return
 		}
 
-		fmt.Printf("User: %+v\n", user)
+		var rawResponse map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &rawResponse); err != nil {
+			fmt.Println("Failed to decode response:", err)
+			return
+		}
+
+		if rawResponse["ID"] == nil {
+			fmt.Println("No user found with that ID.")
+			return
+		}
+
+		fmt.Println("User Details:")
+		if idVal, ok := rawResponse["ID"].(float64); ok {
+			fmt.Printf("• ID: %d\n", int(idVal))
+		} else {
+			fmt.Println("• ID: <not set>")
+		}
+		fmt.Printf("• Name: %s %s\n", safeResponse(rawResponse["FirstName"]), safeResponse(rawResponse["LastName"]))
+		fmt.Printf("• Display Name: %s\n", safeResponse(rawResponse["DisplayName"]))
+		fmt.Printf("• Email: %s\n", safeResponse(rawResponse["Email"]))
+		fmt.Printf("• Created At: %s\n", safeResponse(rawResponse["CreatedAt"]))
 	},
+}
+
+func safeResponse(v interface{}) string {
+	switch val := v.(type) {
+	case string:
+		if val != "" {
+			return val
+		}
+	case map[string]interface{}:
+		if s, ok := val["String"].(string); ok && s != "" {
+			return s
+		}
+		if t, ok := val["Time"].(string); ok && t != "" {
+			return t
+		}
+	}
+	return "<not set>"
 }
 
 var deleteCmd = &cobra.Command{
@@ -157,7 +193,7 @@ var deleteCmd = &cobra.Command{
 func init() {
 	userCmd.AddCommand(createCmd)
 	userCmd.AddCommand(listCmd)
-	userCmd.AddCommand(getCmd)
+	userCmd.AddCommand(viewCmd)
 	userCmd.AddCommand(deleteCmd)
 	rootCmd.AddCommand(userCmd)
 }
