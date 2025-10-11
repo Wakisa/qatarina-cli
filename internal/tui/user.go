@@ -16,35 +16,43 @@ const (
 	stepDisplayName
 	stepEmail
 	stepPassword
+	stepConfirmPassword
 	userSummary
 )
 
 type UserCreateModel struct {
-	step        userStep
-	answers     map[string]string
-	firstName   textinput.Model
-	lastName    textinput.Model
-	displayName textinput.Model
-	email       textinput.Model
-	password    textinput.Model
+	step            userStep
+	answers         map[string]string
+	firstName       textinput.Model
+	lastName        textinput.Model
+	displayName     textinput.Model
+	email           textinput.Model
+	password        textinput.Model
+	confirmPassword textinput.Model
+	errorMsg        string
 }
 
 func NewUserCreateModel() *UserCreateModel {
-	ti := func() textinput.Model {
+	ti := func(mask bool) textinput.Model {
 		t := textinput.New()
 		t.Placeholder = ""
 		t.CharLimit = 256
+		if mask {
+			t.EchoMode = textinput.EchoPassword
+			t.EchoCharacter = '*'
+		}
 		return t
 	}
 
 	return &UserCreateModel{
-		step:        stepFirstName,
-		answers:     make(map[string]string),
-		firstName:   ti(),
-		lastName:    ti(),
-		displayName: ti(),
-		email:       ti(),
-		password:    ti(),
+		step:            stepFirstName,
+		answers:         make(map[string]string),
+		firstName:       ti(false),
+		lastName:        ti(false),
+		displayName:     ti(false),
+		email:           ti(false),
+		password:        ti(true),
+		confirmPassword: ti(true),
 	}
 }
 
@@ -65,6 +73,8 @@ func (m *UserCreateModel) focusCurrentInput() {
 		m.email.Focus()
 	case stepPassword:
 		m.password.Focus()
+	case stepConfirmPassword:
+		m.confirmPassword.Focus()
 	}
 }
 
@@ -140,11 +150,38 @@ func (m *UserCreateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key, ok := msg.(tea.KeyMsg); ok {
 			if key.Type == tea.KeyEnter {
 				m.answers["Password"] = m.password.Value()
-				m.step = userSummary
+				m.step = stepConfirmPassword
+				m.focusCurrentInput()
 				return m, nil
 			} else if key.Type == tea.KeyLeft {
 				m.step = stepEmail
 				m.email.Focus()
+				return m, textinput.Blink
+			}
+		}
+		return m, cmd
+
+	case stepConfirmPassword:
+		var cmd tea.Cmd
+		m.confirmPassword, cmd = m.confirmPassword.Update(msg)
+		if key, ok := msg.(tea.KeyMsg); ok {
+			if key.Type == tea.KeyRunes || key.Type == tea.KeyBackspace {
+				m.errorMsg = ""
+			}
+			if key.Type == tea.KeyEnter {
+				if m.confirmPassword.Value() != m.answers["Password"] {
+					m.errorMsg = "Passwords do not match. Please try again."
+					m.confirmPassword.SetValue("")
+					m.confirmPassword.Focus()
+					return m, textinput.Blink
+				}
+				m.answers["ConfirmPassword"] = m.confirmPassword.Value()
+				m.step = userSummary
+				m.errorMsg = ""
+				return m, nil
+			} else if key.Type == tea.KeyLeft {
+				m.step = stepPassword
+				m.focusCurrentInput()
 				return m, textinput.Blink
 			}
 		}
@@ -189,12 +226,21 @@ func (m *UserCreateModel) View() string {
 		b.WriteString("Enter Password:\n")
 		b.WriteString(m.password.View())
 
+	case stepConfirmPassword:
+		b.WriteString("Confirm Password:\n")
+		b.WriteString(m.confirmPassword.View())
+		if m.errorMsg != "" {
+			b.WriteString("\n" + m.errorMsg)
+		}
+
 	case userSummary:
 		b.WriteString("\nSummary:\n")
-		for _, key := range []string{"FirstName", "LastName", "DisplayName", "Email", "Password"} {
+		for _, key := range []string{"FirstName", "LastName", "DisplayName", "Email", "Password", "ConfirmPassword"} {
 			val := strings.TrimSpace(m.answers[key])
 			if val == "" {
 				val = "[missing]"
+			} else if key == "Password" || key == "ConfirmPassword" {
+				val = "***"
 			}
 			b.WriteString(fmt.Sprintf("• %s: %s\n", key, val))
 		}

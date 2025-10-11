@@ -33,12 +33,3 @@ type UpdateUserRequest struct {
 	City        string `json:"city" validate:"required"`
 	Address     string `json:"address" validate:"-"`
 }
-
-type UserDetail struct {
-	ID          int64  `json:"id"`
-	FirstName   string `json:"first_name"`
-	LastName    string `json:"last_name"`
-	DisplayName string `json:"display_name"`
-	Email       string `json:"email"`
-	CreatedAt   string `json:"created_at"`
-}
