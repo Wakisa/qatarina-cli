@@ -1,44 +1,51 @@
 package cmd
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/wakisa/qatarina-cli/internal/client"
 	"github.com/wakisa/qatarina-cli/internal/schema"
-	"github.com/wakisa/qatarina-cli/tui"
 	"github.com/xuri/excelize/v2"
 )
 
-var importExcelCmd = &cobra.Command{
-	Use:   "import-excel",
-	Short: "Import test cases from an Excel file",
+var importFileCmd = &cobra.Command{
+	Use:   "import-file",
+	Short: "Import test cases from an Excel or CSV file",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		projectID, err := cmd.Flags().GetInt64("project")
 		if err != nil || projectID == 0 {
-			return fmt.Errorf("failed to process projectID: %w", err)
+			return fmt.Errorf("invalid or missing projectID: %w", err)
+		}
+		filePath, err := cmd.Flags().GetString("file")
+		if err != nil || filePath == "" {
+			return fmt.Errorf("file path is required")
 		}
 
-		model, err := tui.RunImportExcelUI()
+		ext := strings.ToLower(filepath.Ext(filePath))
+		var rows [][]string
+
+		switch ext {
+		case ".xlsx":
+			rows, err = parseExcel(filePath)
+		case ".csv":
+			rows, err = parseCSV(filePath)
+		default:
+			return fmt.Errorf("unsupported file type: %s", ext)
+		}
 		if err != nil {
-			return err
-		}
-
-		if model.FilePath == "" {
-			return fmt.Errorf("no file selected")
-		}
-
-		rows, err := parseExcel(model.FilePath)
-		if err != nil {
-			return fmt.Errorf("failed to parse Excel file: %w", err)
+			return fmt.Errorf("failed to parse file: %w", err)
 		}
 
 		testCases := collectedTestCases(rows)
 		if len(testCases) == 0 {
-			fmt.Println("No test cases to import.")
+			fmt.Println("No valid test cases found.")
 			return nil
 		}
 
@@ -48,16 +55,17 @@ var importExcelCmd = &cobra.Command{
 		}
 		body, err := json.Marshal(payload)
 		if err != nil {
-			return fmt.Errorf("failed to process the body :%w", err)
+			return fmt.Errorf("failed to encode payload: %w", err)
 		}
+
 		resp, err := client.Default().Post("v1/test-cases/bulk", body)
 		if err != nil {
 			return fmt.Errorf("API error: %w", err)
 		}
 		defer resp.Body.Close()
 
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode != 200 {
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil || resp.StatusCode != 200 {
 			return fmt.Errorf("API error: %s", string(bodyBytes))
 		}
 
@@ -65,7 +73,9 @@ var importExcelCmd = &cobra.Command{
 		if err := json.Unmarshal(bodyBytes, &message); err != nil {
 			return fmt.Errorf("failed to decode response: %w", err)
 		}
+
 		fmt.Println(message.Message)
+		fmt.Printf("Imported %d test cases to project %d\n", len(testCases), projectID)
 		return nil
 	},
 }
@@ -78,6 +88,16 @@ func parseExcel(path string) ([][]string, error) {
 	return f.GetRows("Sheet1")
 }
 
+func parseCSV(path string) ([][]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	return reader.ReadAll()
+}
 func collectedTestCases(rows [][]string) []schema.ExcelTestCase {
 	var cases []schema.ExcelTestCase
 	start := findHeaderIndex(rows)
@@ -85,13 +105,17 @@ func collectedTestCases(rows [][]string) []schema.ExcelTestCase {
 		if len(row) < 7 {
 			continue // skip incomplete rows
 		}
+		tags := strings.Split(row[5], ",")
+		for i := range tags {
+			tags[i] = strings.TrimSpace(tags[i])
+		}
 		cases = append(cases, schema.ExcelTestCase{
 			Title:           row[0],
 			Description:     row[1],
 			Kind:            row[2],
 			Code:            row[3],
 			FeatureOrModule: row[4],
-			Tags:            strings.Split(row[5], ","),
+			Tags:            tags,
 			IsDraft:         strings.ToLower(row[6]) == "true",
 		})
 	}
@@ -108,6 +132,9 @@ func findHeaderIndex(rows [][]string) int {
 }
 
 func init() {
-	importExcelCmd.Flags().Int64("project", 0, "project ID")
-	rootCmd.AddCommand(importExcelCmd)
+	importFileCmd.Flags().Int64("project", 0, "Project ID")
+	importFileCmd.Flags().String("file", "", "Path to excel or CSV file")
+	importFileCmd.MarkFlagRequired("project")
+	importFileCmd.MarkFlagRequired("file")
+	rootCmd.AddCommand(importFileCmd)
 }
