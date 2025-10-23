@@ -270,6 +270,106 @@ func runDeleteTestCase(id string) error {
 	return nil
 }
 
+var updateTestCaseCmd = &cobra.Command{
+	Use:   "update [test-case-id]",
+	Short: "Update an existing test case",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+
+		// Fetch current test case
+		path := fmt.Sprintf("v1/test-cases/%s", id)
+		resp, err := client.Default().Get(path)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		var wrapper struct {
+			TestCase schema.TestCaseResponse `json:"test_case"`
+		}
+		if err := json.Unmarshal(bodyBytes, &wrapper); err != nil {
+			return fmt.Errorf("failed to decode response: %w", err)
+		}
+		tc := wrapper.TestCase
+
+		// Parse update flags
+		title, _ := cmd.Flags().GetString("title")
+		kind, _ := cmd.Flags().GetString("kind")
+		description, _ := cmd.Flags().GetString("description")
+		code, _ := cmd.Flags().GetString("code")
+		feature, _ := cmd.Flags().GetString("feature-or-module")
+		isDraft, _ := cmd.Flags().GetBool("draft")
+		tags, _ := cmd.Flags().GetStringSlice("tags")
+
+		// Apply updates only if flags are set
+		if title != "" {
+			tc.Title = title
+		}
+		if kind != "" {
+			tc.Kind = kind
+		}
+		if description != "" {
+			tc.Description = description
+		}
+		if code != "" {
+			tc.Code = code
+		}
+		if feature != "" {
+			tc.FeatureOrModule = feature
+		}
+		tc.IsDraft = isDraft
+		if len(tags) > 0 {
+			tc.Tags = tags
+		}
+
+		// Update payload
+		payload := schema.UpdateTestCaseRequest{
+			ID:              tc.ID,
+			Title:           tc.Title,
+			Kind:            tc.Kind,
+			Code:            tc.Code,
+			Description:     tc.Description,
+			FeatureOrModule: tc.FeatureOrModule,
+			IsDraft:         tc.IsDraft,
+			Tags:            tc.Tags,
+		}
+		body, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal update payload: %w", err)
+		}
+
+		// Submit update
+		updatePath := fmt.Sprintf("v1/test-cases/%s", tc.ID)
+		resp, err = client.Default().Post(updatePath, body)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		bodyBytes, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read update response: %w", err)
+		}
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("API error: %s", string(bodyBytes))
+		}
+
+		var msg schema.MessageResponse
+		if err := json.Unmarshal(bodyBytes, &msg); err != nil {
+			return fmt.Errorf("failed to decode update response: %w", err)
+		}
+
+		fmt.Println(msg.Message)
+		return nil
+	},
+}
+
 func init() {
 
 	createTestCaseCmd.Flags().String("title", "", "Title of the test case")
@@ -283,10 +383,19 @@ func init() {
 
 	listTestCasesCmd.Flags().Int64("project", 0, "Project ID")
 
+	updateTestCaseCmd.Flags().String("title", "", "New title")
+	updateTestCaseCmd.Flags().String("kind", "", "New kind")
+	updateTestCaseCmd.Flags().String("description", "", "New description")
+	updateTestCaseCmd.Flags().String("code", "", "New code")
+	updateTestCaseCmd.Flags().String("feature-or-module", "", "New feature/module")
+	updateTestCaseCmd.Flags().Bool("draft", false, "Set draft status")
+	updateTestCaseCmd.Flags().StringSlice("tags", []string{}, "New tags")
+
 	testCaseCmd.AddCommand(createTestCaseCmd)
 	testCaseCmd.AddCommand(listTestCasesCmd)
 	testCaseCmd.AddCommand(viewTestCaseCmd)
 	testCaseCmd.AddCommand(deleteTestCaseCmd)
+	testCaseCmd.AddCommand(updateTestCaseCmd)
 
 	rootCmd.AddCommand(testCaseCmd)
 

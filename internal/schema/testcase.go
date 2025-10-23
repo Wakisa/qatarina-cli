@@ -39,3 +39,14 @@ type TestCaseResponse struct {
 	CreatedAt       string   `json:"created_at"`
 	UpdatedAt       string   `json:"updated_at"`
 }
+
+type UpdateTestCaseRequest struct {
+	ID              string   `json:"id"`
+	Kind            string   `json:"kind"`
+	Code            string   `json:"code"`
+	FeatureOrModule string   `json:"feature_or_module"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description"`
+	IsDraft         bool     `json:"is_draft"`
+	Tags            []string `json:"tags"`
+}
