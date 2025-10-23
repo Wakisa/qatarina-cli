@@ -47,6 +47,6 @@ type UpdateTestCaseRequest struct {
 	FeatureOrModule string   `json:"feature_or_module"`
 	Title           string   `json:"title"`
 	Description     string   `json:"description"`
-	IsDraft         string   `json:"is_draft"`
+	IsDraft         bool     `json:"is_draft"`
 	Tags            []string `json:"tags"`
 }

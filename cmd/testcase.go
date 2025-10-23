@@ -336,7 +336,7 @@ var updateTestCaseCmd = &cobra.Command{
 			Code:            tc.Code,
 			Description:     tc.Description,
 			FeatureOrModule: tc.FeatureOrModule,
-			IsDraft:         strconv.FormatBool(tc.IsDraft),
+			IsDraft:         tc.IsDraft,
 			Tags:            tc.Tags,
 		}
 		body, err := json.Marshal(payload)
