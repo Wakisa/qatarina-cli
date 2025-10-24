@@ -26,7 +26,7 @@ var testCaseCmd = &cobra.Command{
 
 var createTestCaseCmd = &cobra.Command{
 	Use:   "create",
-	Short: "Create a new test case interactively",
+	Short: "Create a new test case with flags or interactively",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		title, _ := cmd.Flags().GetString("title")
 		kind, _ := cmd.Flags().GetString("kind")

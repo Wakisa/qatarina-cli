@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	"github.com/wakisa/qatarina-cli/internal/client"
 	"github.com/wakisa/qatarina-cli/internal/schema"
+	"github.com/wakisa/qatarina-cli/internal/tui"
 )
 
 var projectCmd = &cobra.Command{
@@ -20,7 +23,7 @@ var projectCmd = &cobra.Command{
 
 var createProjectCmd = &cobra.Command{
 	Use:   "create",
-	Short: "Create a new project",
+	Short: "Create a new project (via flags or wizard)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name, _ := cmd.Flags().GetString("name")
 		description, _ := cmd.Flags().GetString("description")
@@ -29,7 +32,8 @@ var createProjectCmd = &cobra.Command{
 		githubURL, _ := cmd.Flags().GetString("github-url")
 
 		if name == "" || description == "" || version == "" || websiteURL == "" {
-			return fmt.Errorf("missing required fields: name, decription, version, website-url")
+			fmt.Println("Launching interactive wizard...")
+			return runCreateProjectWizard()
 		}
 
 		payload := schema.NewProjectRequest{
@@ -39,36 +43,72 @@ var createProjectCmd = &cobra.Command{
 			WebsiteURL:  websiteURL,
 			GitHubURL:   githubURL,
 		}
+		return submitProject(payload)
 
-		body, err := json.Marshal(payload)
-		if err != nil {
-			return fmt.Errorf("failed to marshal payload: %w", err)
-		}
-
-		resp, err := client.Default().Post("v1/projects", body)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("failed to read response: %w", err)
-		}
-		if resp.StatusCode != 200 {
-			return fmt.Errorf("API error: %s", string(bodyBytes))
-		}
-
-		var wrapper struct {
-			Project schema.ProjectResponse `json:"project"`
-		}
-		if err := json.Unmarshal(bodyBytes, &wrapper); err != nil {
-			return fmt.Errorf("failed ot decode response: %w", err)
-		}
-
-		fmt.Printf("Project created: %s (ID: %d)\n", wrapper.Project.Title, wrapper.Project.ID)
-		return nil
 	},
+}
+
+func runCreateProjectWizard() error {
+	m := tui.NewCreateProjectModel()
+	prog := tea.NewProgram(m)
+	final, err := prog.Run()
+	if err != nil {
+		return err
+	}
+
+	pm, ok := final.(*tui.CreateProjectModel)
+	if !ok {
+		return fmt.Errorf("unexpected model type: %T", final)
+	}
+	a := pm.Answers()
+
+	// Validate
+	required := []string{"Name", "Description", "Version", "Website URL"}
+	for _, key := range required {
+		if strings.TrimSpace(a[key]) == "" {
+			return fmt.Errorf("missing value for field %s", key)
+		}
+	}
+
+	payload := schema.NewProjectRequest{
+		Name:        a["Name"],
+		Description: a["Description"],
+		Version:     a["Version"],
+		WebsiteURL:  a["Website URL"],
+		GitHubURL:   a["GitHub URL"],
+	}
+	return submitProject(payload)
+}
+
+func submitProject(payload schema.NewProjectRequest) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	resp, err := client.Default().Post("v1/projects", body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("API error: %s", string(bodyBytes))
+	}
+
+	var wrapper struct {
+		Project schema.ProjectResponse `json:"project"`
+	}
+	if err := json.Unmarshal(bodyBytes, &wrapper); err != nil {
+		return fmt.Errorf("failed ot decode response: %w", err)
+	}
+
+	fmt.Printf("Project created: %s (ID: %d)\n", wrapper.Project.Title, wrapper.Project.ID)
+	return nil
 }
 
 func init() {
