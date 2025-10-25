@@ -14,7 +14,7 @@ This roadmap outlines features to expand the CLI tool to support the main Qatari
 - [x] Delete a test case
 
 ## Project Management
-- [ ] Create a new project
+- [x] Create a new project
 - [ ] List available projects
 - [ ] Get one project and view details
 - [ ] Delete a project
