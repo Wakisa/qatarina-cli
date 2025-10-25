@@ -19,12 +19,18 @@ type ProjectResponse struct {
 	Version     string `json:"version"`
 	IsActive    bool   `json:"is_active"`
 	IsPublic    bool   `json:"is_public"`
-	WebsiteUrl  string `json:"website_url"`
-	GithubUrl   string `json:"github_url"`
-	TrelloUrl   string `json:"trello_url"`
-	JiraUrl     string `json:"jira_url"`
-	MondayUrl   string `json:"monday_url"`
+	WebsiteURL  string `json:"website_url"`
+	GithubURL   string `json:"github_url"`
+	TrelloURL   string `json:"trello_url"`
+	JiraURL     string `json:"jira_url"`
+	MondayURL   string `json:"monday_url"`
 	OwnerUserID int32  `json:"owner_user_id"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
+}
+
+type ModuleResponse struct {
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
