@@ -130,6 +130,40 @@ var listModulesCmd = &cobra.Command{
 	},
 }
 
+var viewModuleCmd = &cobra.Command{
+	Use:   "view <moduleID>",
+	Short: "View module details",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+		resp, err := client.Default().Get("v1/modules/" + id)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if resp.StatusCode != 200 {
+			if len(bodyBytes) == 0 {
+				return fmt.Errorf("module not found (ID: %s)", id)
+			}
+			return fmt.Errorf("module not found (ID: %s): %s", id, string(bodyBytes))
+		}
+
+		var module schema.ModulesResponse
+		if err := json.Unmarshal(bodyBytes, &module); err != nil {
+			return fmt.Errorf("failed to decode response: %w", err)
+		}
+
+		fmt.Printf("Module: %s\nID: %d\nDescription: %s\n", module.Name, module.ID, module.Description)
+		return nil
+	},
+}
+
 func init() {
 	createModuleCmd.Flags().Int32("project-id", 0, "Project ID")
 	createModuleCmd.Flags().String("name", "", "Module name")
@@ -147,5 +181,6 @@ func init() {
 	moduleCmd.AddCommand(createModuleCmd)
 	moduleCmd.AddCommand(updateModuleCmd)
 	moduleCmd.AddCommand(listModulesCmd)
+	moduleCmd.AddCommand(viewModuleCmd)
 	rootCmd.AddCommand(moduleCmd)
 }
