@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/wakisa/qatarina-cli/internal/client"
@@ -29,7 +30,7 @@ var createModuleCmd = &cobra.Command{
 		moduleType, _ := cmd.Flags().GetString("type")
 		description, _ := cmd.Flags().GetString("description")
 
-		payload := schema.ModuleRequest{
+		payload := schema.CreateModuleRequest{
 			ProjectID:   projectID,
 			Name:        name,
 			Code:        code,
@@ -59,6 +60,76 @@ var createModuleCmd = &cobra.Command{
 	},
 }
 
+var updateModuleCmd = &cobra.Command{
+	Use:   "update <moduleID>",
+	Short: "Update a module",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id, err := strconv.Atoi(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid module ID: %w", err)
+		}
+
+		name, _ := cmd.Flags().GetString("name")
+		code, _ := cmd.Flags().GetString("code")
+		priority, _ := cmd.Flags().GetInt32("priority")
+		moduleType, _ := cmd.Flags().GetString("type")
+		description, _ := cmd.Flags().GetString("description")
+
+		payload := schema.UpdateModuleRequest{
+			ID:          int32(id),
+			Name:        name,
+			Code:        code,
+			Priority:    priority,
+			Type:        moduleType,
+			Description: description,
+		}
+
+		body, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal payload: %w", err)
+		}
+
+		resp, err := client.Default().Post("v1/modules/"+args[0], body)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("API error: %s", string(bodyBytes))
+		}
+
+		fmt.Println("Module updated successfully.")
+		return nil
+	},
+}
+
+var listModulesCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all modules",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		resp, err := client.Default().Get("v1/modules")
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		var wrapper struct {
+			Modules []schema.ModulesResponse `json:"modules"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
+			return fmt.Errorf("failed to decode reponse: %w", err)
+		}
+
+		for _, m := range wrapper.Modules {
+			fmt.Printf("• [%d] %s — %s\n", m.ID, m.Name, m.Description)
+		}
+		return nil
+	},
+}
+
 func init() {
 	createModuleCmd.Flags().Int32("project-id", 0, "Project ID")
 	createModuleCmd.Flags().String("name", "", "Module name")
@@ -67,6 +138,14 @@ func init() {
 	createModuleCmd.Flags().String("type", "", "Module type")
 	createModuleCmd.Flags().String("description", "", "Module description")
 
+	updateModuleCmd.Flags().String("name", "", "Module name")
+	updateModuleCmd.Flags().String("code", "", "Module code")
+	updateModuleCmd.Flags().Int32("priority", 0, "Module priority")
+	updateModuleCmd.Flags().String("type", "", "Module type")
+	updateModuleCmd.Flags().String("description", "", "Module description")
+
 	moduleCmd.AddCommand(createModuleCmd)
+	moduleCmd.AddCommand(updateModuleCmd)
+	moduleCmd.AddCommand(listModulesCmd)
 	rootCmd.AddCommand(moduleCmd)
 }
