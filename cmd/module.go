@@ -164,6 +164,28 @@ var viewModuleCmd = &cobra.Command{
 	},
 }
 
+var deleteModuleCmd = &cobra.Command{
+	Use:   "delete <moduleID>",
+	Short: "Delete a module",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+		resp, err := client.Default().Delete("v1/modules/" + id)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("failed to delete module (ID: %s): %s", id, string(bodyBytes))
+		}
+
+		fmt.Println("Module deleted successfully.")
+		return nil
+	},
+}
+
 func init() {
 	createModuleCmd.Flags().Int32("project-id", 0, "Project ID")
 	createModuleCmd.Flags().String("name", "", "Module name")
@@ -182,5 +204,6 @@ func init() {
 	moduleCmd.AddCommand(updateModuleCmd)
 	moduleCmd.AddCommand(listModulesCmd)
 	moduleCmd.AddCommand(viewModuleCmd)
+	moduleCmd.AddCommand(deleteModuleCmd)
 	rootCmd.AddCommand(moduleCmd)
 }
