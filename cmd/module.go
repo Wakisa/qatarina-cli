@@ -50,7 +50,10 @@ var createModuleCmd = &cobra.Command{
 		}
 		defer resp.Body.Close()
 
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
 		if resp.StatusCode != 200 {
 			return fmt.Errorf("API error: %s", string(bodyBytes))
 		}
@@ -96,7 +99,10 @@ var updateModuleCmd = &cobra.Command{
 		}
 		defer resp.Body.Close()
 
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
 		if resp.StatusCode != 200 {
 			return fmt.Errorf("API error: %s", string(bodyBytes))
 		}
@@ -176,7 +182,10 @@ var deleteModuleCmd = &cobra.Command{
 		}
 		defer resp.Body.Close()
 
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
 		if resp.StatusCode != 200 {
 			return fmt.Errorf("failed to delete module (ID: %s): %s", id, string(bodyBytes))
 		}
