@@ -104,7 +104,7 @@ func submitProject(payload schema.NewProjectRequest) error {
 		Project schema.ProjectResponse `json:"project"`
 	}
 	if err := json.Unmarshal(bodyBytes, &wrapper); err != nil {
-		return fmt.Errorf("failed ot decode response: %w", err)
+		return fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	fmt.Printf("Project created: %s (ID: %d)\n", wrapper.Project.Title, wrapper.Project.ID)
@@ -121,10 +121,15 @@ var listProjectCmd = &cobra.Command{
 		}
 		defer resp.Body.Close()
 
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
+
 		var wrapper struct {
 			Projects []schema.ProjectResponse `json:"projects"`
 		}
-		if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
+		if err := json.Unmarshal(bodyBytes, &wrapper); err != nil {
 			return fmt.Errorf("failed to decode response: %w", err)
 		}
 		for _, p := range wrapper.Projects {
@@ -140,6 +145,9 @@ var viewProjectCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id := args[0]
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("project ID cannot be empty")
+		}
 		resp, err := client.Default().Get("v1/projects/" + id)
 		if err != nil {
 			return err
@@ -164,18 +172,25 @@ var viewProjectCmd = &cobra.Command{
 
 var deleteProjectCmd = &cobra.Command{
 	Use:   "delete <projectID>",
-	Short: "Delete a preject",
+	Short: "Delete a project",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id := args[0]
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("project ID cannot be empty")
+		}
 		resp, err := client.Default().Delete("v1/projects/" + id)
 		if err != nil {
 			return err
 		}
 		defer resp.Body.Close()
 
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
+
 		if resp.StatusCode != 200 {
-			body, _ := io.ReadAll(resp.Body)
 			return fmt.Errorf("API error: %s", string(body))
 		}
 
@@ -190,14 +205,22 @@ var modulesCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id := args[0]
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("project ID cannot be empty")
+		}
 		resp, err := client.Default().Get("v1/projects/" + id + "/modules")
 		if err != nil {
 			return err
 		}
 		defer resp.Body.Close()
 
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
 		var modules []schema.ModuleResponse
-		if err := json.NewDecoder(resp.Body).Decode(&modules); err != nil {
+		if err := json.Unmarshal(bodyBytes, &modules); err != nil {
 			return fmt.Errorf("failed to decode response: %w", err)
 		}
 
