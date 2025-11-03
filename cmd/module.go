@@ -141,8 +141,11 @@ var viewModuleCmd = &cobra.Command{
 	Short: "View module details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		id := args[0]
-		resp, err := client.Default().Get("v1/modules/" + id)
+		id, err := strconv.Atoi(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid module ID: %w", err)
+		}
+		resp, err := client.Default().Get("v1/modules/" + args[0])
 		if err != nil {
 			return err
 		}
@@ -155,9 +158,9 @@ var viewModuleCmd = &cobra.Command{
 
 		if resp.StatusCode != 200 {
 			if len(bodyBytes) == 0 {
-				return fmt.Errorf("module not found (ID: %s)", id)
+				return fmt.Errorf("module not found (ID: %d)", id)
 			}
-			return fmt.Errorf("module not found (ID: %s): %s", id, string(bodyBytes))
+			return fmt.Errorf("module not found (ID: %d): %s", id, string(bodyBytes))
 		}
 
 		var module schema.ModulesResponse
@@ -175,8 +178,11 @@ var deleteModuleCmd = &cobra.Command{
 	Short: "Delete a module",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		id := args[0]
-		resp, err := client.Default().Delete("v1/modules/" + id)
+		id, err := strconv.Atoi(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid module ID: %w", err)
+		}
+		resp, err := client.Default().Delete("v1/modules/" + args[0])
 		if err != nil {
 			return err
 		}
@@ -187,7 +193,7 @@ var deleteModuleCmd = &cobra.Command{
 			return fmt.Errorf("failed to read response body: %w", err)
 		}
 		if resp.StatusCode != 200 {
-			return fmt.Errorf("failed to delete module (ID: %s): %s", id, string(bodyBytes))
+			return fmt.Errorf("failed to delete module (ID: %d): %s", id, string(bodyBytes))
 		}
 
 		fmt.Println("Module deleted successfully.")
