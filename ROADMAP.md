@@ -15,10 +15,10 @@ This roadmap outlines features to expand the CLI tool to support the main Qatari
 
 ## Project Management
 - [x] Create a new project
-- [ ] List available projects
-- [ ] Get one project and view details
-- [ ] Delete a project
-- [ ] Get project modules
+- [x] List available projects
+- [x] Get one project and view details
+- [x] Delete a project
+- [x] Get project modules
 
 ## Module Management
 - [ ] Create a module
