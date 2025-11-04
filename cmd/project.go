@@ -104,11 +104,131 @@ func submitProject(payload schema.NewProjectRequest) error {
 		Project schema.ProjectResponse `json:"project"`
 	}
 	if err := json.Unmarshal(bodyBytes, &wrapper); err != nil {
-		return fmt.Errorf("failed ot decode response: %w", err)
+		return fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	fmt.Printf("Project created: %s (ID: %d)\n", wrapper.Project.Title, wrapper.Project.ID)
 	return nil
+}
+
+var listProjectCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all projects",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		resp, err := client.Default().Get("v1/projects")
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
+
+		var wrapper struct {
+			Projects []schema.ProjectResponse `json:"projects"`
+		}
+		if err := json.Unmarshal(bodyBytes, &wrapper); err != nil {
+			return fmt.Errorf("failed to decode response: %w", err)
+		}
+		for _, p := range wrapper.Projects {
+			fmt.Printf("• [%d] %s (%s)\n", p.ID, p.Title, p.Version)
+		}
+		return nil
+	},
+}
+
+var viewProjectCmd = &cobra.Command{
+	Use:   "view <projectID>",
+	Short: "View project details",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("project ID cannot be empty")
+		}
+		resp, err := client.Default().Get("v1/projects/" + id)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		var project schema.ProjectResponse
+		if err := json.Unmarshal(bodyBytes, &project); err != nil {
+			return fmt.Errorf("failed to decode response: %w", err)
+		}
+
+		fmt.Printf("Project: %s\nID: %d\nVersion: %s\nWebsite: %s\nGitHub: %s\nDescription: %s\n Active: %t\n Public: %t\n Owner: %d\n Created: %s\n Updated: %s\n",
+			project.Title, project.ID, project.Version, project.WebsiteURL, project.GithubURL, project.Description, project.IsActive, project.IsPublic, project.OwnerUserID, project.CreatedAt, project.UpdatedAt)
+		return nil
+	},
+}
+
+var deleteProjectCmd = &cobra.Command{
+	Use:   "delete <projectID>",
+	Short: "Delete a project",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("project ID cannot be empty")
+		}
+		resp, err := client.Default().Delete("v1/projects/" + id)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
+
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("API error: %s", string(body))
+		}
+
+		fmt.Println("Project deleted successfully.")
+		return nil
+	},
+}
+
+var modulesCmd = &cobra.Command{
+	Use:   "modules <projectID>",
+	Short: "List modules for a project",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("project ID cannot be empty")
+		}
+		resp, err := client.Default().Get("v1/projects/" + id + "/modules")
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		var modules []schema.ModuleResponse
+		if err := json.Unmarshal(bodyBytes, &modules); err != nil {
+			return fmt.Errorf("failed to decode response: %w", err)
+		}
+
+		for _, m := range modules {
+			fmt.Printf("• [%d] %s — %s\n", m.ID, m.Name, m.Description)
+		}
+		return nil
+	},
 }
 
 func init() {
@@ -119,5 +239,9 @@ func init() {
 	createProjectCmd.Flags().String("github-url", "", "Project GitHub URL")
 
 	projectCmd.AddCommand(createProjectCmd)
+	projectCmd.AddCommand(listProjectCmd)
+	projectCmd.AddCommand(viewProjectCmd)
+	projectCmd.AddCommand(deleteProjectCmd)
+	projectCmd.AddCommand(modulesCmd)
 	rootCmd.AddCommand(projectCmd)
 }
