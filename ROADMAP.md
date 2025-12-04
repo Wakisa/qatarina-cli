@@ -21,11 +21,11 @@ This roadmap outlines features to expand the CLI tool to support the main Qatari
 - [x] Get project modules
 
 ## Module Management
-- [ ] Create a module
-- [ ] List all modules
-- [ ] Get one module
-- [ ] Update a module
-- [ ] Delete a module
+- [x] Create a module
+- [x] List all modules
+- [x] Get one module
+- [x] Update a module
+- [x] Delete a module
 
 ## Test Plan Management
 - [ ] Create a test plan
