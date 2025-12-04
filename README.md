@@ -25,9 +25,7 @@ $ qatarina-cli
 
 ## USAGE
 
-# QATARINA CLI Developer Docs
-
-## Authentication
+### Authentication
 
 Before using commands, you must log in. By default this uses the instance running on `http://localhost:4597`.
 You can use the environment variable `QATARINA_HOST` to customize the server that the CLI interacts with.
